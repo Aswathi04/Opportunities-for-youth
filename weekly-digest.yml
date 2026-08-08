@@ -1,0 +1,41 @@
+name: Weekly OFY Digest
+
+on:
+  schedule:
+    # Runs every Monday at 08:00 UTC. Cron times are always UTC on GitHub
+    # Actions regardless of your local timezone -- adjust the hour if you
+    # want it to land at a specific local time for you.
+    - cron: "0 8 * * 1"
+  workflow_dispatch: {}  # lets you manually trigger a run from the Actions tab, useful for testing
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # needed so the workflow can commit the updated seen.json back
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run digest script
+        env:
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          DIGEST_TO: ${{ secrets.DIGEST_TO }}
+        run: python digest.py
+
+      - name: Commit updated seen-list
+        run: |
+          git config user.name "digest-bot"
+          git config user.email "digest-bot@users.noreply.github.com"
+          git add seen.json
+          git diff --staged --quiet || git commit -m "Update seen posts [skip ci]"
+          git push
